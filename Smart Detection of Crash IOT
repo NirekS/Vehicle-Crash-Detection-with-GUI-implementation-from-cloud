@@ -1,0 +1,111 @@
+import RPi.GPIO as GPIO
+import time
+import thingspeak
+
+
+write_key = '39RKL9LNC6POH6DL' 
+read_key = '57Z08ZOLN65Z34EV'
+channel = thingspeak.Channel(id=channel_id, api_key=write_key)
+
+# GPIO pins for motor control
+motor1A = 2
+motor1B = 3
+motor2A = 4
+motor2B = 5
+
+# GPIO pins for L293D enable control
+enable1 = 17
+enable2 = 18
+
+# GPIO pins for ultrasonic sensor
+trig = 6
+echo = 7
+
+# Set up GPIO mode and motor control pins
+GPIO.setmode(GPIO.BCM)
+GPIO.setup(motor1A, GPIO.OUT)
+GPIO.setup(motor1B, GPIO.OUT)
+GPIO.setup(motor2A, GPIO.OUT)
+GPIO.setup(motor2B, GPIO.OUT)
+
+# Set up GPIO pins for L293D enable control
+GPIO.setup(enable1, GPIO.OUT)
+GPIO.setup(enable2, GPIO.OUT)
+
+# Set up GPIO pins for ultrasonic sensor
+GPIO.setup(trig, GPIO.OUT)
+GPIO.setup(echo, GPIO.IN)
+
+# Set up PWM for enable pins
+pwm1 = GPIO.PWM(enable1, 100)  # Adjust the frequency (100) as per your requirements
+pwm2 = GPIO.PWM(enable2, 100)  # Adjust the frequency (100) as per your requirements
+pwm1.start(100)  # Adjust the initial duty cycle (100) as per your requirements
+pwm2.start(100)  # Adjust the initial duty cycle (100) as per your requirements
+
+# Function to calculate distance from ultrasonic sensor
+def get_distance():
+    time.sleep(0.2)
+    GPIO.output(trig, True)
+    time.sleep(0.00001)
+    GPIO.output(trig, False)
+
+    pulse_start = time.time()
+    pulse_end = time.time()
+
+    while GPIO.input(echo) == 0:
+        pulse_start = time.time()
+
+    while GPIO.input(echo) == 1:
+        pulse_end = time.time()
+
+    pulse_duration = pulse_end - pulse_start
+    distance = pulse_duration * 17150
+    distance = round(distance, 2)
+
+    return distance
+
+# Function to control the robot's movement based on the obstacle distance
+
+
+try:
+    while True:
+        distance = get_distance()
+        print("Distance:", distance, "cm")
+
+        if distance > 20:
+        # Run the robot normally
+        GPIO.output(motor1A, GPIO.HIGH)
+        GPIO.output(motor1B, GPIO.LOW)
+        GPIO.output(motor2A, GPIO.HIGH)
+        GPIO.output(motor2B, GPIO.LOW)
+        pwm1.ChangeDutyCycle(100)  # Adjust the duty cycle (100) as per your requirements
+        pwm2.ChangeDutyCycle(100)  # Adjust the duty cycle (100) as per your requirements
+    while distance > 10 and distance <= 20:
+        # Halve the speed of the motors
+        GPIO.output(motor1A, GPIO.HIGH)
+        GPIO.output(motor1B, GPIO.LOW)
+        GPIO.output(motor2A, GPIO.HIGH)
+        GPIO.output(motor2B, GPIO.LOW)
+        pwm1.ChangeDutyCycle(50)  # Adjust the duty cycle (50) as per your requirements
+        pwm2.ChangeDutyCycle(50)  # Adjust the duty cycle (50) as per your requirements
+        time.sleep(1)
+        distance = get_distance()
+        response = channel.update({'field1':distance })
+        
+        
+    while distance <= 10:
+        # Stop the robot
+        GPIO.output(motor1A, GPIO.LOW)
+        GPIO.output(motor1B, GPIO.LOW)
+        GPIO.output(motor2A, GPIO.LOW)
+        GPIO.output(motor2B, GPIO.LOW)
+        pwm1.ChangeDutyCycle(0)  # Adjust the duty cycle (0) as per your requirements
+        pwm2.ChangeDutyCycle(0)  # Adjust the duty cycle (0) as per your requirements
+        time.sleep(1)
+        distance = get_distance()
+        response = channel.update({'field2':distance })
+        
+        time.sleep(0.1)  # Adjust this value as per your requirements
+
+except KeyboardInterrupt:
+    GPIO.cleanup()
