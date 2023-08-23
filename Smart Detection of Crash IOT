@@ -3,8 +3,8 @@ import time
 import thingspeak
 
 
-write_key = '39RKL9LNC6POH6DL' 
-read_key = '57Z08ZOLN65Z34EV'
+write_key = '' 
+read_key = ''
 channel = thingspeak.Channel(id=channel_id, api_key=write_key)
 
 # GPIO pins for motor control
